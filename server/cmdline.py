@@ -72,5 +72,36 @@ while True:
 
             with open("./data/" + col + ".store", "a") as f:
                 f.write(get_hash(9) + "\t" + tsp(data) + "\n")
+    if inp == "fix":
+        if not Path("analytics.store").is_file():
+            with open("analytics.store", "w") as f:
+                f.write("W:\t0\nR:\t0\n")
+            print("created analytics file")
+        if not Path("data.store").is_file():
+            with open("data.store", "w") as f:
+                f.write()
+            print("created data file")
+        print("---")
+        print("all fixed!")
+    if inp == "wipe":
+        if Path("data.store").is_file():
+            os.remove("data.store")
+            print("wiped client ids")
+        if Path("analytics.store").is_file():
+            os.remove("analytics.store")
+            print("wiped analytics")
+
+        for filename in os.listdir("data"):
+            f = os.path.join("data", filename)
+            # checking if it is a file
+            if os.path.isfile(f):
+                os.remove(f)
+        print("---")
+        print("wiped server")
+    if inp == "resecure":
+        if Path("data.store").is_file():
+            os.remove("data.store")
+            print("wiped client ids")
+        print('server is secure')
     if inp == "exit":
         break

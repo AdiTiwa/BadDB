@@ -7,6 +7,7 @@ import secrets
 import string
 from pathlib import Path
 import json
+import time
 
 app = Flask(__name__)
 
@@ -19,6 +20,9 @@ ERROR CODES AND HANDLING
 """
 
 subscriptions = {}
+
+def tsp_read(content):
+    return re.split(r'\t+', content.strip())
 
 def collection_exists(col):
     return Path("./data/" + col + ".store").is_file()
@@ -48,6 +52,35 @@ def check_ccode(ccode):
                 return True
     return False
 
+def uss_request(type, ip): # update server stats request
+    if type == "read":
+        uss_read()
+    elif type == "write":
+        uss_write()
+    with open("analytics.store", "a") as f:
+        f.write(f"IP: {ip}\tType: {type}\Time: {time.localtime()}\n")
+
+def uss_write(): # update server stats writes
+    with open("analytics.store", "r") as f: 
+        lines = f.readlines()
+
+    content = tsp_read(lines[0])
+
+    lines[0] = f"W\t{str(int(content[1]) + 1)}\n"
+    
+    with open("analytics.store", "w") as f: 
+        f.writelines(lines)
+
+def uss_read(): # update server stats reads
+    with open("analytics.store", "r") as f: 
+        lines = f.readlines()
+
+    content = tsp_read(lines[1])
+    lines[1] = f"R\t{str(int(content[1]) + 1)}\n"
+    
+    with open("analytics.store", "w") as f: 
+        f.writelines(lines)
+
 @app.route('/<ccode>/create/<col>')
 def create(ccode, col):
     if not check_ccode(ccode):
@@ -64,7 +97,7 @@ def create(ccode, col):
     if exists:
         with open("./data/" + col + ".store", "r") as file:
             content = file.readlines()[0]
-            if re.split(r'\t+', content.strip())[1:] != keys:
+            if tsp_read(content.strip())[1:] != keys:
                 return "400: Key error, invalid keys."
         with open("./data/" + col + ".store", "a") as file:
             file.write(get_hash(9) + "\t" + tsp(vals) + "\n")
@@ -73,6 +106,8 @@ def create(ccode, col):
             file.write("id\t" + tsp(keys) + "\n")
             file.write(get_hash(9) + "\t" + tsp(vals) + "\n")
     
+    uss_request("write", request.environ["REMOTE_ADDR"])
+
     return "200"
 
 @app.route('/<ccode>/remove/<col>/<id>')
@@ -99,6 +134,7 @@ def remove(ccode, col, id):
         for line in ncontent:
             file.write("%s" % line)
 
+    uss_request("write", request.environ["REMOTE_ADDR"])
 
     return "200"
 
@@ -117,7 +153,7 @@ def update(ccode, col, id):
     with open("./data/" + col + ".store", "r") as file:
         content = file.readlines()
         header = content[0]
-        if re.split(r'\t+', header.strip())[1:] != keys:
+        if tsp_read(header.strip())[1:] != keys:
             return "400: Key error, invalid keys."
     
     ncontent = []
@@ -138,6 +174,8 @@ def update(ccode, col, id):
             else:
                 ssu(subscription["ip"], col, None)
 
+    uss_request("write", request.environ["REMOTE_ADDR"])
+
     return "200"
 
 @app.route('/<ccode>/display/<col>')
@@ -157,16 +195,18 @@ def display(ccode, col):
         with open('./data/' + col + ".store", "r") as f:
             content = f.readlines()
         
-        header = re.split(r'\t+', content[0].strip())
+        header = tsp_read(content[0].strip())
         data = content[1:]
         
         for line in data:
-            line = re.split(r'\t+', line.strip())
+            line = tsp_read(line.strip())
 
             d = {}
             for idx, val in enumerate(line):
                 d.update({header[idx]: val})
             r["values"].append(d)
+
+        uss_request("read", request.environ["REMOTE_ADDR"])
 
         return json.dumps(r)
     else:
@@ -174,16 +214,18 @@ def display(ccode, col):
         with open('./data/' + col + ".store", "r") as f:
             content = f.readlines()
         
-        header = re.split(r'\t+', content[0].strip())
+        header = tsp_read(content[0].strip())
         data = content[1:]
         d = {}
 
         for line in data:
             if line.startswith(id):
-                line = re.split(r'\t+', line.strip())
+                line = tsp_read(line.strip())
 
                 for idx, val in enumerate(line):
                     d.update({header[idx]: val})
+
+        uss_request("read", request.environ["REMOTE_ADDR"])
             
         return json.dumps(d)
 
@@ -215,7 +257,7 @@ def ssu(ip, col, id): # send subscription update
     with open('./data/' + col + ".store", "r") as f:
         content = f.readlines()
     
-    header = re.split(r'\t+', content[0].strip())
+    header = tsp_read(content[0].strip())
     data = content[1:]
 
     if id:
@@ -223,7 +265,7 @@ def ssu(ip, col, id): # send subscription update
 
         for line in data:
             if line.startswith(id):
-                line = re.split(r'\t+', line.strip())
+                line = tsp_read(line.strip())
 
                 for idx, val in enumerate(line):
                     d.update({header[idx]: val})
@@ -233,7 +275,7 @@ def ssu(ip, col, id): # send subscription update
         r = {"name": col, "values": []}
 
         for line in data:
-            line = re.split(r'\t+', line.strip())
+            line = tsp_read(line.strip())
 
             d = {}
             for idx, val in enumerate(line):
