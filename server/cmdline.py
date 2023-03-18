@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import keyboard
 import re
+import requests
 
 def get_hash(size):
     return ''.join(secrets.choice(string.ascii_uppercase + string.ascii_lowercase + "0123456789") for _ in range(size))
@@ -103,5 +104,29 @@ while True:
             os.remove("data.store")
             print("wiped client ids")
         print('server is secure')
+    if inp == "new":
+        with open("main.py", "r") as f:
+            f.write(requests.get("https://raw.githubusercontent.com/AdiTiwa/baddb/master/server/main.py").text)
+        if not Path("analytics.store").is_file():
+            with open("analytics.store", "w") as f:
+                f.write("W:\t0\nR:\t0\n")
+        if not Path("data.store").is_file():
+            with open("data.store", "w") as f:
+                f.write()
+        print("server is now downloaded!")
+        print("simply run:")
+        print()
+        print("python main.py")
+        print()
+        print("to begin server")
+        print("now download the client file:")
+        print("run the command")
+        print()
+        print("? client")
+        print()
+        print("to mirror the client file")
+    if inp == "client":
+        with open("baddb.py", "r") as f:
+            f.write(requests.get("https://raw.githubusercontent.com/AdiTiwa/baddb/master/client/client.py").text)
     if inp == "exit":
         break
